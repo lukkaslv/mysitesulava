@@ -1,5 +1,5 @@
 {
-  "name": "PSYCH_TERMINAL_V1",
-  "description": "A brutalist, terminal-styled website for a modern psychologist featuring an AI reflection assistant.",
+  "name": "Brutalist Psych Admin",
+  "description": "A monochrome, brutalist-style website for a psychologist with a built-in content management system for full control over text and services.",
   "requestFramePermissions": []
 }

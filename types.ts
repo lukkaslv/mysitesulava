@@ -1,24 +1,59 @@
-export interface Message {
+export type Language = 'ka' | 'ru';
+
+export interface Service {
   id: string;
-  role: 'user' | 'model' | 'system';
-  text: string;
-  timestamp: Date;
+  title_ka: string;
+  title_ru: string;
+  price: string;
+  description_ka: string;
+  description_ru: string;
+  duration: string;
 }
 
-export interface ServiceItem {
+export interface Page {
   id: string;
-  code: string;
-  title: Record<Language, string>;
-  description: Record<Language, string>;
-  price: Record<Language, string>;
-  duration: Record<Language, string>;
+  slug: string;
+  title_ka: string;
+  title_ru: string;
+  content_ka: string;
+  content_ru: string;
+  isVisible: boolean;
+  order: number;
 }
 
-export type Language = 'ru' | 'ka';
+export interface Profile {
+  name_ka: string;
+  name_ru: string;
+  title_ka: string;
+  title_ru: string;
+  bio_ka: string;
+  bio_ru: string;
+  email: string;
+  phone: string;
+  telegram: string;
+  instagram: string;
+  location_ka: string;
+  location_ru: string;
+}
 
-export enum Section {
-  HOME = 'INIT',
-  ABOUT = 'BIO',
-  SERVICES = 'SERVICES',
-  CONTACT = 'CONTACT',
+export interface AppData {
+  profile: Profile;
+  services: Service[];
+  pages: Page[];
+}
+
+export interface DataContextType {
+  data: AppData;
+  language: Language;
+  setLanguage: (lang: Language) => void;
+  updateProfile: (profile: Profile) => void;
+  addService: (service: Service) => void;
+  updateService: (service: Service) => void;
+  deleteService: (id: string) => void;
+  addPage: (page: Page) => void;
+  updatePage: (page: Page) => void;
+  deletePage: (id: string) => void;
+  resetToDefaults: () => void;
+  bookingModalOpen: boolean;
+  setBookingModalOpen: (open: boolean) => void;
 }
