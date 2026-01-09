@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 interface BrutalistButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -10,6 +11,7 @@ export const BrutalistButton: React.FC<BrutalistButtonProps> = ({
   variant = 'primary', 
   fullWidth = false,
   className = '',
+  type = 'button', // Default to 'button' to avoid accidental submits
   ...props 
 }) => {
   const baseStyles = "px-6 py-3 font-mono text-sm font-bold uppercase transition-all duration-100 active:translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed";
@@ -22,6 +24,7 @@ export const BrutalistButton: React.FC<BrutalistButtonProps> = ({
 
   return (
     <button 
+      type={type}
       className={`${baseStyles} ${variants[variant]} ${fullWidth ? 'w-full' : ''} ${className}`}
       {...props}
     >

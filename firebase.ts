@@ -1,7 +1,6 @@
 
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
-// Fix: Use correct modular named export for getAuth in Firebase v9+ from 'firebase/auth'
 import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {

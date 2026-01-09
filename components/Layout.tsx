@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { useData } from '../context/DataContext';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, ExternalLink } from 'lucide-react';
+import { Menu, X, ExternalLink as ExternalLinkIcon } from 'lucide-react';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { data, language, setLanguage, bookingModalOpen, setBookingModalOpen } = useData();
@@ -17,13 +18,19 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     .filter(p => p.isVisible)
     .sort((a, b) => a.order - b.order);
 
+  // External Links (sorted by order)
+  const extLinks = [...(data.externalLinks || [])]
+    .filter(l => l.isVisible)
+    .sort((a, b) => a.order - b.order);
+
   const isActive = (path: string) => location.pathname === path;
 
   const toggleLanguage = () => {
       setLanguage(language === 'ka' ? 'ru' : 'ka');
   };
 
-  const bookLabel = language === 'ka' ? 'ჩაწერა' : 'ЗАПИСАТЬСЯ';
+  const bookLabel = language === 'ka' ? data.ui.book_btn.ka : data.ui.book_btn.ru;
+  const servicesLabel = language === 'ka' ? data.ui.services_nav.ka : data.ui.services_nav.ru;
   
   // Social Links
   const whatsappLink = `https://wa.me/${data.profile.phone.replace(/[^0-9]/g, '')}`;
@@ -40,6 +47,16 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       // Reset count after 2 seconds if not completed
       setTimeout(() => setSecretClicks(0), 2000);
   };
+
+  // Lock body scroll when mobile menu is open
+  useEffect(() => {
+    if (mobileMenuOpen || bookingModalOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => { document.body.style.overflow = 'unset'; };
+  }, [mobileMenuOpen, bookingModalOpen]);
 
   return (
     <div className="min-h-screen flex flex-col bg-white text-black font-sans selection:bg-black selection:text-white">
@@ -87,8 +104,23 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                 isActive('/services') ? 'bg-black text-white' : ''
               }`}
             >
-               {language === 'ka' ? 'სერვისები' : 'Услуги'}
+               {servicesLabel}
             </Link>
+            
+            {/* EXTERNAL LINKS */}
+            {extLinks.map((link) => (
+              <a
+                key={link.id}
+                href={link.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="h-full flex items-center gap-2 px-4 lg:px-8 border-r-2 border-black font-mono font-bold uppercase hover:bg-black hover:text-white transition-colors"
+              >
+                {language === 'ka' ? link.label_ka : link.label_ru}
+                <ExternalLinkIcon size={12} className="opacity-50" />
+              </a>
+            ))}
+
              <button 
                 onClick={() => setBookingModalOpen(true)}
                 className="h-full flex items-center px-6 lg:px-8 border-r-2 border-black bg-black text-white font-mono font-bold uppercase hover:bg-red-600 transition-colors"
@@ -123,7 +155,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
       {/* Mobile Nav Overlay */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-b-2 border-black bg-white fixed top-16 left-0 right-0 z-30 shadow-xl">
+        <div className="md:hidden border-b-2 border-black bg-white fixed top-[64px] left-0 right-0 z-30 shadow-xl overflow-y-auto max-h-[calc(100vh-64px)]">
           {navPages.map((page) => (
             <Link
               key={page.id}
@@ -139,8 +171,21 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
             onClick={() => setMobileMenuOpen(false)}
             className="block p-4 border-b-2 border-black font-mono font-bold uppercase hover:bg-black hover:text-white"
           >
-             {language === 'ka' ? 'სერვისები' : 'Услуги'}
+             {servicesLabel}
           </Link>
+          {extLinks.map((link) => (
+             <a
+                key={link.id}
+                href={link.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setMobileMenuOpen(false)}
+                className="p-4 border-b-2 border-black font-mono font-bold uppercase hover:bg-black hover:text-white flex items-center justify-between"
+             >
+                {language === 'ka' ? link.label_ka : link.label_ru}
+                <ExternalLinkIcon size={14} />
+             </a>
+          ))}
         </div>
       )}
 
@@ -167,7 +212,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                         className="flex items-center justify-between p-4 border-2 border-black font-bold uppercase hover:bg-[#25D366] hover:text-white hover:border-[#25D366] transition-colors group"
                       >
                           <span>WhatsApp</span>
-                          <ExternalLink size={20} />
+                          <ExternalLinkIcon size={20} />
                       </a>
                       <a 
                         href={telegramLink}
@@ -176,7 +221,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                         className="flex items-center justify-between p-4 border-2 border-black font-bold uppercase hover:bg-[#0088cc] hover:text-white hover:border-[#0088cc] transition-colors group"
                       >
                           <span>Telegram</span>
-                          <ExternalLink size={20} />
+                          <ExternalLinkIcon size={20} />
                       </a>
                       <a 
                         href={instagramLink}
@@ -185,7 +230,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                         className="flex items-center justify-between p-4 border-2 border-black font-bold uppercase hover:bg-[#C13584] hover:text-white hover:border-[#C13584] transition-colors group"
                       >
                           <span>Instagram</span>
-                          <ExternalLink size={20} />
+                          <ExternalLinkIcon size={20} />
                       </a>
                   </div>
 
@@ -206,7 +251,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-8">
           <div>
             <h3 className="font-bold text-xl mb-4 font-mono uppercase">
-                {language === 'ka' ? 'კონტაქტი' : 'Контакты'}
+                {language === 'ka' ? data.ui.contact_footer.ka : data.ui.contact_footer.ru}
             </h3>
             <p className="mb-2 font-mono text-sm opacity-80">
                  {language === 'ka' ? data.profile.location_ka : data.profile.location_ru}
@@ -228,13 +273,14 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           </div>
           <div className="md:text-right flex flex-col justify-between">
              <div 
-                className="mt-8 md:mt-0 cursor-pointer select-none" 
+                className={`mt-8 md:mt-0 cursor-pointer select-none transition-opacity duration-300 ${secretClicks > 0 ? 'opacity-100' : 'opacity-80'}`}
                 onClick={handleSecretClick}
                 title="Rights"
              >
                 <p className="font-mono text-xs md:text-sm text-gray-400">
                    © {new Date().getFullYear()} {language === 'ka' ? data.profile.name_ka : data.profile.name_ru}.<br/>
-                   {language === 'ka' ? 'ყველა უფლება დაცულია.' : 'Все права защищены.'}
+                   {language === 'ka' ? data.ui.rights_footer.ka : data.ui.rights_footer.ru}
+                   {secretClicks > 0 && <span className="ml-2 text-red-500">[{5 - secretClicks}]</span>}
                 </p>
              </div>
           </div>

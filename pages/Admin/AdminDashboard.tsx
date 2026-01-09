@@ -2,84 +2,105 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useData } from '../../context/DataContext';
 import { BrutalistButton } from '../../components/BrutalistButton';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { 
-  Trash2, Plus, GripVertical, Settings, Layout, 
-  DollarSign, LogOut, Lock, Download, Upload, 
-  Database, Loader2, User as UserIcon, Globe, 
-  Phone, Mail, MessageSquare, Instagram, MapPin 
+  Layout, DollarSign, Database, Loader2, User as UserIcon,
+  Type, Plus, Trash2, ExternalLink as ExternalLinkIcon, ChevronRight, Link as LinkIcon, Settings
 } from 'lucide-react';
-import { Page, Service, AppData, Profile } from '../../types';
+import { Page, Service, Profile, UIStrings, ExternalLink, AppData } from '../../types';
 import { auth } from '../../firebase';
-// Fix: Import auth functions as values and User as a type to resolve "no exported member" errors in TypeScript environments
-import { onAuthStateChanged, signInWithEmailAndPassword, signOut, type User } from 'firebase/auth';
+import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import type { User } from 'firebase/auth';
 
-type Tab = 'pages' | 'services' | 'profile' | 'system';
+type Tab = 'pages' | 'services' | 'profile' | 'system' | 'uiStrings' | 'navigation';
 
 export const AdminDashboard: React.FC = () => {
   const { 
-    data, updateProfile, addPage, updatePage, deletePage, 
-    addService, updateService, deleteService, resetToDefaults, 
-    importData 
+    data, updateProfile, updatePage, addPage, deletePage, updateService, addService, deleteService, 
+    updateUI, resetToDefaults, addExternalLink, updateExternalLink, deleteExternalLink, importData
   } = useData();
-  
-  const [activeTab, setActiveTab] = useState<Tab>('pages');
+  const [activeTab, setActiveTab] = useState<Tab>('profile');
   const [isSaving, setIsSaving] = useState(false);
-  const navigate = useNavigate();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // ----- Auth State -----
   const [user, setUser] = useState<User | null>(null);
   const [emailInput, setEmailInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
-  const [authLoading, setAuthLoading] = useState(true);
-  const [error, setError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // ----- Form States -----
-  const [profileForm, setProfileForm] = useState<Profile>(data.profile);
-  const [editingPageId, setEditingPageId] = useState<string | null>(null);
-  const [pageForm, setPageForm] = useState<Partial<Page>>({});
-  const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
-  const [serviceForm, setServiceForm] = useState<Partial<Service>>({});
+  // Local states for editing to prevent lag
+  const [tempProfile, setTempProfile] = useState<Profile>(data.profile);
+  const [tempUI, setTempUI] = useState<UIStrings>(data.ui);
+
+  // Ext Link Form
+  const [linkForm, setLinkForm] = useState<Partial<ExternalLink>>({});
+  const [editingLinkId, setEditingLinkId] = useState<string | null>(null);
+
+  // Sync temp states when data changes
+  useEffect(() => {
+    if (data) {
+        setTempProfile(data.profile);
+        setTempUI(data.ui);
+    }
+  }, [data]);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      setAuthLoading(false);
-    });
-    return () => unsubscribe();
+    onAuthStateChanged(auth, setUser);
   }, []);
 
-  useEffect(() => {
-    if (data.profile) {
-      setProfileForm(data.profile);
+  const handleSave = async (action: () => Promise<void> | void, message = "Данные обновлены") => {
+    setIsSaving(true);
+    try {
+      await action();
+      alert(message);
+    } catch (e) {
+      alert("Ошибка сохранения");
+    } finally {
+      setIsSaving(false);
     }
-  }, [data.profile]);
+  };
 
-  const handleLogin = async (e: React.FormEvent) => {
-      e.preventDefault();
-      setError('');
-      try {
-          await signInWithEmailAndPassword(auth, emailInput, passwordInput);
-      } catch (err: any) {
-          setError('ავტორიზაციის შეცდომა / Ошибка входа. Проверьте данные.');
+  const handleLinkSave = async () => {
+      setIsSaving(true);
+      if (editingLinkId && editingLinkId !== 'new') {
+          const original = data.externalLinks.find(l => l.id === editingLinkId);
+          if (original) await updateExternalLink({ ...original, ...linkForm } as ExternalLink);
+      } else {
+          await addExternalLink({
+              id: uuidv4(),
+              url: linkForm.url || 'https://',
+              label_ka: linkForm.label_ka || 'New Link',
+              label_ru: linkForm.label_ru || 'New Link',
+              order: linkForm.order || 0,
+              isVisible: true
+          });
       }
+      setIsSaving(false);
+      setEditingLinkId(null);
+      setLinkForm({});
   };
 
-  const handleLogout = async () => {
-      await signOut(auth);
-      navigate('/');
+  // ----- AUTH SCREEN -----
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center p-4">
+        <form onSubmit={async (e) => { e.preventDefault(); try { await signInWithEmailAndPassword(auth, emailInput, passwordInput); } catch { alert('Неверный логин или пароль'); } }} className="bg-white p-8 border-4 border-black space-y-4 shadow-[10px_10px_0px_0px_white] w-full max-w-md">
+          <h1 className="font-black text-2xl text-center uppercase">SULAVA ADMIN</h1>
+          <input className="w-full border-2 border-black p-3 font-mono" placeholder="Email" value={emailInput} onChange={e => setEmailInput(e.target.value)} />
+          <input type="password" className="w-full border-2 border-black p-3 font-mono" placeholder="Password" value={passwordInput} onChange={e => setPasswordInput(e.target.value)} />
+          <BrutalistButton fullWidth type="submit" disabled={isSaving}>{isSaving ? 'Logging in...' : 'Enter Console'}</BrutalistButton>
+        </form>
+      </div>
+    );
+  }
+
+  // Helper for safe access to UI strings
+  const getUI = (key: keyof UIStrings) => {
+     return tempUI[key] || { ka: '', ru: '' };
   };
 
-  const handleExport = () => {
-    const dataStr = JSON.stringify(data, null, 2);
-    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-    const exportFileDefaultName = `sulava_backup_${new Date().toISOString().slice(0,10)}.json`;
-    const linkElement = document.createElement('a');
-    linkElement.setAttribute('href', dataUri);
-    linkElement.setAttribute('download', exportFileDefaultName);
-    linkElement.click();
+  const setUI = (key: keyof UIStrings, lang: 'ka' | 'ru', val: string) => {
+     const currentObj = tempUI[key] || { ka: '', ru: '' };
+     setTempUI({ ...tempUI, [key]: { ...currentObj, [lang]: val } });
   };
 
   const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -89,11 +110,9 @@ export const AdminDashboard: React.FC = () => {
     reader.onload = async (e) => {
       try {
         const json = JSON.parse(e.target?.result as string);
-        if (json && json.profile && json.pages && json.services) {
-            if (window.confirm("გსურთ მონაცემების შეცვლა? / ЗАМЕНИТЬ ДАННЫЕ В ОБЛАКЕ?")) {
-                setIsSaving(true);
-                await importData(json as AppData);
-                setIsSaving(false);
+        if (json && json.profile) {
+            if (window.confirm("Заменить данные в базе?")) {
+                importData(json as AppData);
             }
         }
       } catch (err) { alert("Error reading file."); }
@@ -102,341 +121,336 @@ export const AdminDashboard: React.FC = () => {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const handleProfileSave = async () => {
-    setIsSaving(true);
-    await updateProfile(profileForm);
-    setIsSaving(false);
-    alert('პროფილი განახლდა / Профиль обновлен');
-  };
-
-  const handlePageSave = async () => {
-    setIsSaving(true);
-    if (editingPageId && editingPageId !== 'new') {
-        const pageToUpdate = data.pages.find(p => p.id === editingPageId);
-        if(pageToUpdate) await updatePage({ ...pageToUpdate, ...pageForm } as Page);
-    } else {
-        await addPage({
-            id: uuidv4(),
-            isVisible: true,
-            order: data.pages.length + 1,
-            slug: pageForm.slug || `page-${Date.now()}`,
-            title_ka: pageForm.title_ka || '',
-            title_ru: pageForm.title_ru || '',
-            content_ka: pageForm.content_ka || '',
-            content_ru: pageForm.content_ru || ''
-        } as Page);
-    }
-    setIsSaving(false);
-    setEditingPageId(null);
-    setPageForm({});
-  };
-
-  const handleServiceSave = async () => {
-    setIsSaving(true);
-    if (editingServiceId && editingServiceId !== 'new') {
-        const sToUpdate = data.services.find(s => s.id === editingServiceId);
-        if(sToUpdate) await updateService({ ...sToUpdate, ...serviceForm } as Service);
-    } else {
-        await addService({
-            id: uuidv4(),
-            title_ka: serviceForm.title_ka || '',
-            title_ru: serviceForm.title_ru || '',
-            price: serviceForm.price || '',
-            duration: serviceForm.duration || '',
-            description_ka: serviceForm.description_ka || '',
-            description_ru: serviceForm.description_ru || ''
-        });
-    }
-    setIsSaving(false);
-    setEditingServiceId(null);
-    setServiceForm({});
-  };
-
-  if (authLoading) return (
-    <div className="min-h-screen bg-white flex items-center justify-center font-mono font-bold">
-      კავშირი... / CONNECTING...
-    </div>
-  );
-
-  if (!user) {
-      return (
-          <div className="min-h-screen bg-black flex items-center justify-center p-4">
-              <div className="bg-white p-8 max-w-md w-full border-4 border-black shadow-[12px_12px_0px_0px_#333]">
-                  <div className="flex justify-center mb-6">
-                    <Lock size={48} />
-                  </div>
-                  <h1 className="text-2xl font-black uppercase text-center mb-6 tracking-tighter">SULAVA ADMIN</h1>
-                  <form onSubmit={handleLogin} className="space-y-4">
-                      <input 
-                        type="email" 
-                        className="w-full border-2 border-black p-3 font-mono focus:bg-gray-50 outline-none" 
-                        placeholder="EMAIL" 
-                        value={emailInput} 
-                        onChange={e => setEmailInput(e.target.value)} 
-                        required 
-                      />
-                      <input 
-                        type="password" 
-                        className="w-full border-2 border-black p-3 font-mono focus:bg-gray-50 outline-none" 
-                        placeholder="PASSWORD" 
-                        value={passwordInput} 
-                        onChange={e => setPasswordInput(e.target.value)} 
-                        required 
-                      />
-                      {error && <p className="text-red-600 font-bold text-center text-xs">{error}</p>}
-                      <BrutalistButton fullWidth type="submit">Authorize</BrutalistButton>
-                  </form>
-                  <Link to="/" className="block mt-6 text-center text-xs font-mono underline uppercase opacity-50 hover:opacity-100 transition-opacity">
-                    Back to Public Website
-                  </Link>
-              </div>
-          </div>
-      );
-  }
-
   return (
-    <div className="min-h-screen bg-[#f0f0f0] font-sans text-black">
-      {isSaving && (
-          <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center">
-              <div className="bg-white border-4 border-black p-6 flex items-center gap-4 shadow-[12px_12px_0px_0px_black]">
-                  <Loader2 className="animate-spin" />
-                  <span className="font-black uppercase tracking-widest">Pushing to Cloud...</span>
-              </div>
-          </div>
-      )}
-
-      {/* Admin Top Nav */}
-      <div className="bg-black text-white p-4 flex justify-between items-center border-b-4 border-white sticky top-0 z-50">
-        <div className="flex items-center gap-3">
-          <div className="bg-white text-black p-1">
-            <Settings size={20} />
-          </div>
-          <h1 className="text-lg md:text-xl font-black uppercase tracking-tighter">Manager Console</h1>
+    <div className="min-h-screen bg-[#f7f7f7] flex flex-col font-sans">
+      <header className="bg-black text-white p-4 flex justify-between items-center sticky top-0 z-50">
+        <div className="flex items-center gap-4">
+          <h1 className="font-black uppercase text-xl tracking-tighter">SULAVA CONTROL</h1>
+          {isSaving && <Loader2 className="animate-spin text-white" size={20} />}
         </div>
-        <div className="flex gap-2">
-            <Link to="/"><BrutalistButton className="text-[10px] py-1 px-3 border-white bg-black text-white hover:bg-white hover:text-black">Public Site</BrutalistButton></Link>
-            <BrutalistButton onClick={handleLogout} className="text-[10px] py-1 px-3 border-white bg-black text-white hover:bg-red-600 hover:text-white"><LogOut size={16} /></BrutalistButton>
+        <div className="flex gap-4">
+          <Link to="/"><BrutalistButton className="py-1 px-4 text-[10px] bg-white text-black">View Site</BrutalistButton></Link>
+          <BrutalistButton onClick={() => signOut(auth)} className="py-1 px-4 text-[10px] border-white text-white hover:bg-white hover:text-black">Logout</BrutalistButton>
         </div>
-      </div>
+      </header>
 
-      <div className="flex flex-col md:flex-row min-h-[calc(100vh-68px)]">
-        {/* Sidebar */}
-        <aside className="w-full md:w-64 bg-white border-r-4 border-black flex flex-row md:flex-col sticky top-[68px] h-fit md:h-[calc(100vh-68px)] z-20">
-            <button onClick={() => setActiveTab('pages')} className={`flex-1 md:flex-none p-4 md:p-6 font-bold uppercase border-b-2 border-black flex items-center gap-3 hover:bg-black hover:text-white transition-colors ${activeTab === 'pages' ? 'bg-black text-white' : ''}`}>
-              <Layout size={20} /> <span className="hidden md:inline">Pages</span>
+      <div className="flex flex-1">
+        <aside className="w-64 bg-white border-r-4 border-black hidden lg:flex flex-col sticky top-16 h-[calc(100vh-64px)] overflow-y-auto">
+          {[
+            { id: 'profile', icon: UserIcon, label: 'Мой Профиль' },
+            { id: 'services', icon: DollarSign, label: 'Услуги и Прайс' },
+            { id: 'pages', icon: Layout, label: 'Страницы' },
+            { id: 'navigation', icon: LinkIcon, label: 'Навигация / Ссылки' },
+            { id: 'uiStrings', icon: Type, label: 'Тексты / Кнопки' },
+            { id: 'system', icon: Database, label: 'База Данных' }
+          ].map(t => (
+            <button key={t.id} onClick={() => setActiveTab(t.id as Tab)} className={`p-5 border-b-2 border-black flex items-center gap-4 transition-colors ${activeTab === t.id ? 'bg-black text-white' : 'hover:bg-gray-100'}`}>
+              <t.icon size={18} />
+              <span className="font-black uppercase text-[11px] tracking-widest">{t.label}</span>
             </button>
-            <button onClick={() => setActiveTab('services')} className={`flex-1 md:flex-none p-4 md:p-6 font-bold uppercase border-b-2 border-black flex items-center gap-3 hover:bg-black hover:text-white transition-colors ${activeTab === 'services' ? 'bg-black text-white' : ''}`}>
-              <DollarSign size={20} /> <span className="hidden md:inline">Services</span>
-            </button>
-            <button onClick={() => setActiveTab('profile')} className={`flex-1 md:flex-none p-4 md:p-6 font-bold uppercase border-b-2 border-black flex items-center gap-3 hover:bg-black hover:text-white transition-colors ${activeTab === 'profile' ? 'bg-black text-white' : ''}`}>
-              <UserIcon size={20} /> <span className="hidden md:inline">Profile</span>
-            </button>
-            <button onClick={() => setActiveTab('system')} className={`flex-1 md:flex-none p-4 md:p-6 font-bold uppercase md:border-b-2 border-black flex items-center gap-3 hover:bg-black hover:text-white transition-colors ${activeTab === 'system' ? 'bg-black text-white' : ''}`}>
-              <Database size={20} /> <span className="hidden md:inline">System</span>
-            </button>
+          ))}
         </aside>
 
-        {/* Content Area */}
-        <main className="flex-1 p-4 md:p-10 overflow-y-auto">
-            {activeTab === 'pages' && (
-                <div className="max-w-4xl mx-auto space-y-8">
-                    <div className="flex justify-between items-end border-b-4 border-black pb-4">
-                        <h2 className="text-3xl font-black uppercase tracking-tighter">Content / Pages</h2>
-                        <BrutalistButton onClick={() => {setEditingPageId('new'); setPageForm({});}} className="flex items-center gap-2"><Plus size={18} /> New Page</BrutalistButton>
-                    </div>
-
-                    <div className="grid gap-4">
-                        {data.pages.sort((a,b) => a.order - b.order).map(page => (
-                            <div key={page.id} className="bg-white border-2 border-black p-5 flex justify-between items-center shadow-[6px_6px_0px_0px_black] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all">
-                                <div className="flex items-center gap-4">
-                                    <div className="p-2 border-2 border-black bg-gray-50"><GripVertical size={20} /></div>
-                                    <div>
-                                        <div className="font-black uppercase text-lg">{page.title_ka || page.title_ru}</div>
-                                        <div className="text-xs font-mono text-gray-400">slug: /{page.slug} {page.isVisible ? '' : '[HIDDEN]'}</div>
-                                    </div>
-                                </div>
-                                <div className="flex gap-2">
-                                    <button onClick={() => {setEditingPageId(page.id); setPageForm(page);}} className="p-3 border-2 border-black hover:bg-black hover:text-white transition-colors"><Settings size={18} /></button>
-                                    <button onClick={() => { if(window.confirm('Delete page?')) deletePage(page.id); }} className="p-3 border-2 border-black hover:bg-red-600 hover:text-white transition-colors text-red-600"><Trash2 size={18} /></button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-
-                    {editingPageId && (
-                        <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4">
-                            <div className="bg-white border-4 border-black w-full max-w-3xl p-6 md:p-10 shadow-[15px_15px_0px_0px_white] overflow-y-auto max-h-[90vh]">
-                                <h3 className="text-2xl font-black uppercase mb-8 border-b-2 border-black pb-2">{editingPageId === 'new' ? 'Create Page' : 'Edit Page'}</h3>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                                    <div className="md:col-span-1">
-                                        <label className="block text-[10px] font-black uppercase mb-1">Slug (URL endpoint)</label>
-                                        <input className="w-full border-2 border-black p-3 font-mono text-sm" value={pageForm.slug || ''} onChange={e => setPageForm({...pageForm, slug: e.target.value})} placeholder="e.g. bio" />
-                                    </div>
-                                    <div className="md:col-span-1">
-                                        <label className="block text-[10px] font-black uppercase mb-1">Display Order</label>
-                                        <input type="number" className="w-full border-2 border-black p-3 font-mono text-sm" value={pageForm.order || 0} onChange={e => setPageForm({...pageForm, order: parseInt(e.target.value)})} />
-                                    </div>
-                                    <div>
-                                        <label className="block text-[10px] font-black uppercase mb-1">Title (Georgian)</label>
-                                        <input className="w-full border-2 border-black p-3 font-bold" value={pageForm.title_ka || ''} onChange={e => setPageForm({...pageForm, title_ka: e.target.value})} />
-                                    </div>
-                                    <div>
-                                        <label className="block text-[10px] font-black uppercase mb-1">Title (Russian)</label>
-                                        <input className="w-full border-2 border-black p-3 font-bold" value={pageForm.title_ru || ''} onChange={e => setPageForm({...pageForm, title_ru: e.target.value})} />
-                                    </div>
-                                    <div className="md:col-span-2">
-                                        <label className="block text-[10px] font-black uppercase mb-1">Content (Georgian)</label>
-                                        <textarea className="w-full border-2 border-black p-3 font-sans h-40 leading-relaxed" value={pageForm.content_ka || ''} onChange={e => setPageForm({...pageForm, content_ka: e.target.value})} />
-                                    </div>
-                                    <div className="md:col-span-2">
-                                        <label className="block text-[10px] font-black uppercase mb-1">Content (Russian)</label>
-                                        <textarea className="w-full border-2 border-black p-3 font-sans h-40 leading-relaxed" value={pageForm.content_ru || ''} onChange={e => setPageForm({...pageForm, content_ru: e.target.value})} />
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        <input type="checkbox" id="isVisible" className="w-5 h-5 accent-black" checked={pageForm.isVisible ?? true} onChange={e => setPageForm({...pageForm, isVisible: e.target.checked})} />
-                                        <label htmlFor="isVisible" className="text-xs font-black uppercase">Visible in main navigation</label>
-                                    </div>
-                                </div>
-                                <div className="flex flex-col md:flex-row gap-4">
-                                    <BrutalistButton onClick={handlePageSave} fullWidth>Commit Changes</BrutalistButton>
-                                    <BrutalistButton onClick={() => setEditingPageId(null)} variant="secondary" fullWidth>Cancel</BrutalistButton>
-                                </div>
-                            </div>
-                        </div>
-                    )}
+        <main className="flex-1 p-8 overflow-y-auto">
+          
+           {/* NAVIGATION / EXTERNAL LINKS TAB */}
+           {activeTab === 'navigation' && (
+            <div className="max-w-5xl space-y-6">
+                <div className="flex justify-between items-center">
+                    <h2 className="text-2xl font-black uppercase">Внешние Ссылки в Меню</h2>
+                    <BrutalistButton onClick={() => { setEditingLinkId('new'); setLinkForm({}); }} className="flex gap-2 items-center">
+                        <Plus size={16}/> Добавить Ссылку
+                    </BrutalistButton>
                 </div>
-            )}
-
-            {activeTab === 'services' && (
-                <div className="max-w-4xl mx-auto space-y-8">
-                    <div className="flex justify-between items-end border-b-4 border-black pb-4">
-                        <h2 className="text-3xl font-black uppercase tracking-tighter">Services & Pricing</h2>
-                        <BrutalistButton onClick={() => {setEditingServiceId('new'); setServiceForm({});}} className="flex items-center gap-2"><Plus size={18} /> New Service</BrutalistButton>
-                    </div>
-                    <div className="grid gap-4">
-                        {data.services.map(service => (
-                            <div key={service.id} className="bg-white border-2 border-black p-5 flex justify-between items-center shadow-[6px_6px_0px_0px_black]">
+                <div className="space-y-4">
+                    {(data.externalLinks || []).sort((a,b) => a.order - b.order).map(link => (
+                         <div key={link.id} className="bg-white border-2 border-black p-5 flex justify-between items-center shadow-[6px_6px_0px_0px_black]">
+                            <div className="flex items-center gap-4">
+                                <span className="font-mono text-xs border border-black px-2">{link.order}</span>
                                 <div>
-                                    <div className="font-black uppercase text-lg">{service.title_ka} / {service.title_ru}</div>
-                                    <div className="text-sm font-mono text-gray-500">{service.price} — {service.duration}</div>
-                                </div>
-                                <div className="flex gap-2">
-                                    <button onClick={() => {setEditingServiceId(service.id); setServiceForm(service);}} className="p-3 border-2 border-black hover:bg-black hover:text-white transition-colors"><Settings size={18} /></button>
-                                    <button onClick={() => { if(window.confirm('Delete service?')) deleteService(service.id); }} className="p-3 border-2 border-black hover:bg-red-600 hover:text-white text-red-600"><Trash2 size={18} /></button>
+                                    <div className="font-black uppercase text-sm">{link.label_ru} / {link.label_ka}</div>
+                                    <div className="text-xs font-mono text-blue-600 truncate max-w-md">{link.url}</div>
                                 </div>
                             </div>
-                        ))}
-                    </div>
-
-                    {editingServiceId && (
-                        <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4">
-                            <div className="bg-white border-4 border-black w-full max-w-2xl p-6 md:p-10 shadow-[15px_15px_0px_0px_white]">
-                                <h3 className="text-2xl font-black uppercase mb-8 border-b-2 border-black pb-2">{editingServiceId === 'new' ? 'New Service' : 'Edit Service'}</h3>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                                    <input className="border-2 border-black p-3 font-bold" placeholder="Title (Georgian)" value={serviceForm.title_ka || ''} onChange={e => setServiceForm({...serviceForm, title_ka: e.target.value})} />
-                                    <input className="border-2 border-black p-3 font-bold" placeholder="Title (Russian)" value={serviceForm.title_ru || ''} onChange={e => setServiceForm({...serviceForm, title_ru: e.target.value})} />
-                                    <input className="border-2 border-black p-3 font-mono" placeholder="Price (e.g. 100 GEL)" value={serviceForm.price || ''} onChange={e => setServiceForm({...serviceForm, price: e.target.value})} />
-                                    <input className="border-2 border-black p-3 font-mono" placeholder="Duration (e.g. 50 min)" value={serviceForm.duration || ''} onChange={e => setServiceForm({...serviceForm, duration: e.target.value})} />
-                                    <textarea className="md:col-span-2 border-2 border-black p-3 h-24" placeholder="Description (Georgian)" value={serviceForm.description_ka || ''} onChange={e => setServiceForm({...serviceForm, description_ka: e.target.value})} />
-                                    <textarea className="md:col-span-2 border-2 border-black p-3 h-24" placeholder="Description (Russian)" value={serviceForm.description_ru || ''} onChange={e => setServiceForm({...serviceForm, description_ru: e.target.value})} />
-                                </div>
-                                <div className="flex gap-4">
-                                    <BrutalistButton onClick={handleServiceSave} fullWidth>Save Service</BrutalistButton>
-                                    <BrutalistButton onClick={() => setEditingServiceId(null)} variant="secondary" fullWidth>Cancel</BrutalistButton>
-                                </div>
+                            <div className="flex gap-2">
+                                <button onClick={() => {setEditingLinkId(link.id); setLinkForm(link);}} className="p-3 border-2 border-black hover:bg-black hover:text-white transition-colors"><Settings size={18} /></button>
+                                <button 
+                                    onClick={(e) => { 
+                                        e.preventDefault(); 
+                                        if(window.confirm('Delete link?')) deleteExternalLink(link.id); 
+                                    }} 
+                                    className="p-3 border-2 border-black hover:bg-red-600 hover:text-white transition-colors text-red-600"
+                                >
+                                    <Trash2 size={18} />
+                                </button>
                             </div>
                         </div>
-                    )}
+                    ))}
+                    {data.externalLinks.length === 0 && <p className="opacity-50">Здесь можно добавить ссылки на ваши другие ресурсы.</p>}
                 </div>
-            )}
 
-            {activeTab === 'profile' && (
-                <div className="max-w-3xl mx-auto space-y-10 pb-20">
-                    <div className="flex justify-between items-end border-b-4 border-black pb-4">
-                        <h2 className="text-3xl font-black uppercase tracking-tighter">Psychologist Profile</h2>
-                        <BrutalistButton onClick={handleProfileSave}>Sync All Data</BrutalistButton>
-                    </div>
-
-                    {/* Personal Info */}
-                    <div className="bg-white border-4 border-black p-6 md:p-8 shadow-[10px_10px_0px_0px_black] space-y-6">
-                        <h3 className="text-xl font-black uppercase flex items-center gap-2 border-b-2 border-black pb-2">
-                          <UserIcon size={24}/> Identity & Bio
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {editingLinkId && (
+                    <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4">
+                        <div className="bg-white border-4 border-black w-full max-w-lg p-6 shadow-[10px_10px_0px_0px_white]">
+                            <h3 className="text-xl font-black uppercase mb-6">{editingLinkId === 'new' ? 'New Link' : 'Edit Link'}</h3>
                             <div className="space-y-4">
-                                <div><label className="block text-[10px] font-black uppercase mb-1">Name (KA)</label><input className="w-full border-2 border-black p-3 font-black text-lg" value={profileForm.name_ka} onChange={e => setProfileForm({...profileForm, name_ka: e.target.value})} /></div>
-                                <div><label className="block text-[10px] font-black uppercase mb-1">Title (KA)</label><input className="w-full border-2 border-black p-3" value={profileForm.title_ka} onChange={e => setProfileForm({...profileForm, title_ka: e.target.value})} /></div>
-                                <div><label className="block text-[10px] font-black uppercase mb-1">Bio (KA)</label><textarea className="w-full h-32 border-2 border-black p-3 text-sm" value={profileForm.bio_ka} onChange={e => setProfileForm({...profileForm, bio_ka: e.target.value})} /></div>
+                                <div>
+                                    <label className="text-[10px] font-bold">LABEL (RU)</label>
+                                    <input className="w-full border-2 border-black p-2" value={linkForm.label_ru || ''} onChange={e => setLinkForm({...linkForm, label_ru: e.target.value})} placeholder="ТЕСТ" />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-bold">LABEL (KA)</label>
+                                    <input className="w-full border-2 border-black p-2" value={linkForm.label_ka || ''} onChange={e => setLinkForm({...linkForm, label_ka: e.target.value})} placeholder="ტესტი" />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-bold">URL (HTTPS)</label>
+                                    <input className="w-full border-2 border-black p-2" value={linkForm.url || ''} onChange={e => setLinkForm({...linkForm, url: e.target.value})} placeholder="https://..." />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-bold">ORDER</label>
+                                    <input type="number" className="w-full border-2 border-black p-2" value={linkForm.order || 0} onChange={e => setLinkForm({...linkForm, order: parseInt(e.target.value)})} />
+                                </div>
+                                <div className="flex gap-4 pt-4">
+                                    <BrutalistButton onClick={handleLinkSave} fullWidth>Save</BrutalistButton>
+                                    <BrutalistButton onClick={() => setEditingLinkId(null)} variant="secondary" fullWidth>Cancel</BrutalistButton>
+                                </div>
                             </div>
-                            <div className="space-y-4">
-                                <div><label className="block text-[10px] font-black uppercase mb-1">Name (RU)</label><input className="w-full border-2 border-black p-3 font-black text-lg" value={profileForm.name_ru} onChange={e => setProfileForm({...profileForm, name_ru: e.target.value})} /></div>
-                                <div><label className="block text-[10px] font-black uppercase mb-1">Title (RU)</label><input className="w-full border-2 border-black p-3" value={profileForm.title_ru} onChange={e => setProfileForm({...profileForm, title_ru: e.target.value})} /></div>
-                                <div><label className="block text-[10px] font-black uppercase mb-1">Bio (RU)</label><textarea className="w-full h-32 border-2 border-black p-3 text-sm" value={profileForm.bio_ru} onChange={e => setProfileForm({...profileForm, bio_ru: e.target.value})} /></div>
+                        </div>
+                    </div>
+                )}
+            </div>
+           )}
+
+          {/* UI STRINGS TAB */}
+          {activeTab === 'uiStrings' && (
+            <div className="max-w-5xl space-y-6">
+              <div className="flex justify-between items-center border-b-4 border-black pb-4">
+                <h2 className="text-2xl font-black uppercase">Тексты Интерфейса и Кнопки</h2>
+                <BrutalistButton onClick={() => handleSave(() => updateUI(tempUI))}>Сохранить</BrutalistButton>
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Specifically filter out important_info_text because we have a dedicated editor for it in Services tab */}
+                {Object.keys(tempUI).filter(k => k !== 'important_info_text').map((key) => {
+                    const typedKey = key as keyof UIStrings;
+                    return (
+                        <div key={key} className="bg-white border-2 border-black p-4 space-y-2">
+                            <h3 className="text-[10px] font-black uppercase opacity-40">{key}</h3>
+                            <div className="grid gap-2">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[8px] font-bold w-6">RU</span>
+                                    <input className="w-full border border-black p-2 font-mono text-xs" value={getUI(typedKey).ru} onChange={e => setUI(typedKey, 'ru', e.target.value)} />
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[8px] font-bold w-6 text-red-600">KA</span>
+                                    <input className="w-full border border-black p-2 font-mono text-xs" value={getUI(typedKey).ka} onChange={e => setUI(typedKey, 'ka', e.target.value)} />
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    );
+                })}
+              </div>
+            </div>
+          )}
 
-                    {/* Contacts & Socials */}
-                    <div className="bg-white border-4 border-black p-6 md:p-8 shadow-[10px_10px_0px_0px_black] space-y-6">
-                        <h3 className="text-xl font-black uppercase flex items-center gap-2 border-b-2 border-black pb-2">
-                          <Globe size={24}/> Connectivity
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                          <div className="space-y-4">
-                             <div className="flex items-center gap-3"><Mail className="opacity-40" /> <div className="flex-1"><label className="block text-[10px] font-black uppercase">Email</label><input className="w-full border-2 border-black p-2 font-mono" value={profileForm.email} onChange={e => setProfileForm({...profileForm, email: e.target.value})} /></div></div>
-                             <div className="flex items-center gap-3"><Phone className="opacity-40" /> <div className="flex-1"><label className="block text-[10px] font-black uppercase">Phone</label><input className="w-full border-2 border-black p-2 font-mono" value={profileForm.phone} onChange={e => setProfileForm({...profileForm, phone: e.target.value})} /></div></div>
-                          </div>
-                          <div className="space-y-4">
-                             <div className="flex items-center gap-3"><MessageSquare className="opacity-40" /> <div className="flex-1"><label className="block text-[10px] font-black uppercase">Telegram (@)</label><input className="w-full border-2 border-black p-2 font-mono" value={profileForm.telegram} onChange={e => setProfileForm({...profileForm, telegram: e.target.value})} /></div></div>
-                             <div className="flex items-center gap-3"><Instagram className="opacity-40" /> <div className="flex-1"><label className="block text-[10px] font-black uppercase">Instagram (@)</label><input className="w-full border-2 border-black p-2 font-mono" value={profileForm.instagram} onChange={e => setProfileForm({...profileForm, instagram: e.target.value})} /></div></div>
-                          </div>
+          {/* PAGES TAB */}
+          {activeTab === 'pages' && (
+            <div className="max-w-5xl space-y-6">
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-black uppercase">Управление Страницами</h2>
+                <BrutalistButton onClick={() => {
+                  const newPage: Page = { id: uuidv4(), slug: 'new-page-' + Date.now(), title_ru: 'Новая страница', title_ka: 'ახალი გვერდი', content_ru: '', content_ka: '', isVisible: true, order: data.pages.length + 1 };
+                  addPage(newPage);
+                }} className="flex gap-2 items-center"><Plus size={16}/> Добавить страницу</BrutalistButton>
+              </div>
+              <div className="space-y-4">
+                {data.pages.sort((a,b) => a.order - b.order).map(page => (
+                  <details key={page.id} className="bg-white border-4 border-black group">
+                    <summary className="p-4 cursor-pointer font-black flex justify-between items-center uppercase hover:bg-gray-50 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <span className="w-8 h-8 flex items-center justify-center border-2 border-black bg-black text-white text-xs">{page.order}</span>
+                        <span>{page.slug === 'home' ? '🏠 ' : ''}{page.title_ru}</span>
+                      </div>
+                      <div className="flex gap-4 items-center">
+                        <span className={`text-[10px] px-2 py-1 ${page.isVisible ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                          {page.isVisible ? 'VISIBLE' : 'HIDDEN'}
+                        </span>
+                        <ChevronRight className="group-open:rotate-90 transition-transform" />
+                      </div>
+                    </summary>
+                    <div className="p-6 border-t-2 border-black space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-bold">SLUG (URL)</label>
+                            <input disabled={page.slug === 'home'} className="w-full border-2 border-black p-2 disabled:bg-gray-200" value={page.slug} onChange={e => updatePage({...page, slug: e.target.value})} placeholder="URL Slug" />
                         </div>
-                    </div>
-
-                    {/* Location */}
-                    <div className="bg-white border-4 border-black p-6 md:p-8 shadow-[10px_10px_0px_0px_black] space-y-6">
-                        <h3 className="text-xl font-black uppercase flex items-center gap-2 border-b-2 border-black pb-2">
-                          <MapPin size={24}/> Location Info
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <div><label className="block text-[10px] font-black uppercase mb-1">Location / Office (KA)</label><input className="w-full border-2 border-black p-3" value={profileForm.location_ka} onChange={e => setProfileForm({...profileForm, location_ka: e.target.value})} /></div>
-                          <div><label className="block text-[10px] font-black uppercase mb-1">Location / Office (RU)</label><input className="w-full border-2 border-black p-3" value={profileForm.location_ru} onChange={e => setProfileForm({...profileForm, location_ru: e.target.value})} /></div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-bold">ORDER</label>
+                            <input type="number" className="w-full border-2 border-black p-2" value={page.order} onChange={e => updatePage({...page, order: parseInt(e.target.value)})} placeholder="Order" />
                         </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <input className="border-2 border-black p-2" value={page.title_ru} onChange={e => updatePage({...page, title_ru: e.target.value})} placeholder="Title RU" />
+                        <input className="border-2 border-black p-2" value={page.title_ka} onChange={e => updatePage({...page, title_ka: e.target.value})} placeholder="Title KA" />
+                      </div>
+                      <textarea className="w-full border-2 border-black p-4 h-32 font-serif" value={page.content_ru} onChange={e => updatePage({...page, content_ru: e.target.value})} placeholder="Content RU" />
+                      <textarea className="w-full border-2 border-black p-4 h-32 font-serif" value={page.content_ka} onChange={e => updatePage({...page, content_ka: e.target.value})} placeholder="Content KA" />
+                      <div className="flex justify-between pt-4 border-t border-black">
+                        <BrutalistButton variant="secondary" onClick={() => updatePage({...page, isVisible: !page.isVisible})}>Toggle Visibility</BrutalistButton>
+                        {page.slug !== 'home' && (
+                            <BrutalistButton 
+                                variant="danger" 
+                                onClick={(e) => { 
+                                    e.preventDefault(); 
+                                    if(window.confirm('Вы уверены, что хотите удалить эту страницу?')) deletePage(page.id); 
+                                }}
+                            >
+                                <Trash2 size={16}/>
+                            </BrutalistButton>
+                        )}
+                      </div>
                     </div>
+                  </details>
+                ))}
+              </div>
+            </div>
+          )}
 
-                    <div className="pt-4">
-                      <BrutalistButton fullWidth onClick={handleProfileSave}>Sync All Profile Data to Cloud</BrutalistButton>
-                    </div>
+          {/* SERVICES TAB */}
+          {activeTab === 'services' && (
+            <div className="max-w-5xl space-y-12">
+              <div className="space-y-6">
+                <div className="flex justify-between items-center">
+                    <h2 className="text-2xl font-black uppercase">Услуги и Прайс</h2>
+                    <BrutalistButton onClick={() => {
+                    const newService: Service = { id: uuidv4(), title_ru: 'Новая услуга', title_ka: 'ახალი სერვისი', price: '100 GEL', duration: '50 min', description_ru: '', description_ka: '' };
+                    addService(newService);
+                    }} className="flex gap-2 items-center"><Plus size={16}/> Добавить услугу</BrutalistButton>
                 </div>
-            )}
-
-            {activeTab === 'system' && (
-                <div className="max-w-2xl mx-auto space-y-8">
-                    <div className="border-b-4 border-black pb-4">
-                      <h2 className="text-3xl font-black uppercase tracking-tighter">System & Data</h2>
-                    </div>
-                    
-                    <div className="bg-white border-4 border-black p-8 shadow-[10px_10px_0px_0px_black] space-y-6">
-                        <h3 className="font-bold uppercase text-xl flex items-center gap-3 border-b-2 border-black pb-2"><Download size={24} /> Database Portability</h3>
-                        <p className="text-sm font-mono leading-relaxed opacity-60">
-                          Use these tools to backup your current website content into a local file, or restore from a previously saved JSON backup.
-                        </p>
-                        <div className="flex flex-col sm:flex-row gap-4">
-                            <BrutalistButton onClick={handleExport} className="flex-1 flex items-center justify-center gap-2"><Download size={20} /> Export (JSON)</BrutalistButton>
-                            <BrutalistButton onClick={() => fileInputRef.current?.click()} className="flex-1 flex items-center justify-center gap-2" variant="secondary"><Upload size={20} /> Import (JSON)</BrutalistButton>
-                            <input type="file" ref={fileInputRef} className="hidden" accept=".json" onChange={handleImport} />
+                {data.services.length === 0 && <p className="text-center py-10 opacity-50">Услуг пока нет. Добавьте первую.</p>}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {data.services.map(s => (
+                    <div key={s.id} className="bg-white border-4 border-black p-6 space-y-4 shadow-[8px_8px_0px_0px_black]">
+                        <div className="grid grid-cols-2 gap-2">
+                        <input className="border-2 border-black p-2 font-black text-sm" value={s.title_ru} onChange={e => updateService({...s, title_ru: e.target.value})} />
+                        <input className="border-2 border-black p-2 font-black text-sm" value={s.title_ka} onChange={e => updateService({...s, title_ka: e.target.value})} />
                         </div>
+                        <div className="grid grid-cols-2 gap-2">
+                        <input className="border-2 border-black p-2 font-mono text-xs" value={s.price} onChange={e => updateService({...s, price: e.target.value})} />
+                        <input className="border-2 border-black p-2 font-mono text-xs" value={s.duration} onChange={e => updateService({...s, duration: e.target.value})} />
+                        </div>
+                        <textarea className="w-full border-2 border-black p-2 text-xs h-20" value={s.description_ru} onChange={e => updateService({...s, description_ru: e.target.value})} placeholder="Description RU" />
+                        <textarea className="w-full border-2 border-black p-2 text-xs h-20" value={s.description_ka} onChange={e => updateService({...s, description_ka: e.target.value})} placeholder="Description KA" />
+                        <BrutalistButton 
+                            variant="danger" 
+                            fullWidth 
+                            onClick={(e) => { 
+                                e.preventDefault();
+                                if(window.confirm('Удалить услугу?')) deleteService(s.id); 
+                            }}
+                        >
+                            <Trash2 size={16}/>
+                        </BrutalistButton>
                     </div>
-
-                    <div className="bg-red-50 border-4 border-red-600 p-8 shadow-[10px_10px_0px_0px_#dc2626] space-y-6">
-                        <h3 className="font-bold uppercase text-xl text-red-600 flex items-center gap-3 border-b-2 border-red-200 pb-2"><Trash2 size={24} /> Danger Zone</h3>
-                        <p className="text-sm text-red-700 font-mono font-bold">
-                          WARNING: This action will completely overwrite all your cloud data with the initial system defaults. All your custom changes will be lost.
-                        </p>
-                        <BrutalistButton onClick={resetToDefaults} variant="danger" fullWidth>Wipe & Reset to Default</BrutalistButton>
-                    </div>
+                    ))}
                 </div>
-            )}
+              </div>
+              
+              <div className="border-t-4 border-black pt-8 space-y-6">
+                  <div className="flex justify-between items-center">
+                     <h3 className="text-xl font-black uppercase">Блок «Важная Информация»</h3>
+                     <BrutalistButton onClick={() => handleSave(() => updateUI(tempUI))}>Сохранить Информацию</BrutalistButton>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                          <label className="font-bold text-xs uppercase">RU Текст (Новая строка = Новый пункт)</label>
+                          <textarea className="w-full border-2 border-black p-4 h-48 font-mono text-xs leading-relaxed" value={getUI('important_info_text').ru} onChange={e => setUI('important_info_text', 'ru', e.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                          <label className="font-bold text-xs uppercase text-red-600">KA Текст (Новая строка = Новый пункт)</label>
+                          <textarea className="w-full border-2 border-black p-4 h-48 font-mono text-xs leading-relaxed" value={getUI('important_info_text').ka} onChange={e => setUI('important_info_text', 'ka', e.target.value)} />
+                      </div>
+                  </div>
+              </div>
+            </div>
+          )}
+
+          {/* PROFILE TAB */}
+          {activeTab === 'profile' && (
+            <div className="max-w-3xl space-y-8 bg-white border-4 border-black p-10 shadow-[12px_12px_0px_0px_black]">
+                <div className="flex justify-between items-center border-b-2 border-black pb-4 mb-6">
+                  <h2 className="text-2xl font-black uppercase">Персональные данные</h2>
+                  <BrutalistButton onClick={() => handleSave(() => updateProfile(tempProfile))}>Обновить Профиль</BrutalistButton>
+                </div>
+                <div className="grid gap-6">
+                   <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase">Имя (RU)</label>
+                        <input className="w-full border-2 border-black p-3" value={tempProfile.name_ru} onChange={e => setTempProfile({...tempProfile, name_ru: e.target.value})} />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase">Имя (KA)</label>
+                        <input className="w-full border-2 border-black p-3" value={tempProfile.name_ka} onChange={e => setTempProfile({...tempProfile, name_ka: e.target.value})} />
+                      </div>
+                   </div>
+                   <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase">Специальность (RU)</label>
+                        <input className="w-full border-2 border-black p-3" value={tempProfile.title_ru} onChange={e => setTempProfile({...tempProfile, title_ru: e.target.value})} />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase">Специальность (KA)</label>
+                        <input className="w-full border-2 border-black p-3" value={tempProfile.title_ka} onChange={e => setTempProfile({...tempProfile, title_ka: e.target.value})} />
+                      </div>
+                   </div>
+                   <div className="space-y-1">
+                     <label className="text-[10px] font-black uppercase">Bio (RU)</label>
+                     <textarea className="w-full border-2 border-black p-3 h-32" value={tempProfile.bio_ru} onChange={e => setTempProfile({...tempProfile, bio_ru: e.target.value})} />
+                   </div>
+                   <div className="space-y-1">
+                     <label className="text-[10px] font-black uppercase">Bio (KA)</label>
+                     <textarea className="w-full border-2 border-black p-3 h-32" value={tempProfile.bio_ka} onChange={e => setTempProfile({...tempProfile, bio_ka: e.target.value})} />
+                   </div>
+                   <div className="grid grid-cols-2 gap-4 border-t-2 border-black pt-6">
+                      <input className="border-2 border-black p-3" placeholder="Phone" value={tempProfile.phone} onChange={e => setTempProfile({...tempProfile, phone: e.target.value})} />
+                      <input className="border-2 border-black p-3" placeholder="Email" value={tempProfile.email} onChange={e => setTempProfile({...tempProfile, email: e.target.value})} />
+                      <input className="border-2 border-black p-3" placeholder="Telegram username" value={tempProfile.telegram} onChange={e => setTempProfile({...tempProfile, telegram: e.target.value})} />
+                      <input className="border-2 border-black p-3" placeholder="Instagram username" value={tempProfile.instagram} onChange={e => setTempProfile({...tempProfile, instagram: e.target.value})} />
+                      <input className="border-2 border-black p-3" placeholder="Location RU" value={tempProfile.location_ru} onChange={e => setTempProfile({...tempProfile, location_ru: e.target.value})} />
+                      <input className="border-2 border-black p-3" placeholder="Location KA" value={tempProfile.location_ka} onChange={e => setTempProfile({...tempProfile, location_ka: e.target.value})} />
+                   </div>
+                </div>
+            </div>
+          )}
+
+          {/* SYSTEM TAB */}
+          {activeTab === 'system' && (
+            <div className="max-w-2xl bg-white border-4 border-black p-10 space-y-8 shadow-[10px_10px_0px_0px_red]">
+                <h2 className="text-2xl font-black uppercase text-red-600">Опасная Зона</h2>
+                <div className="flex gap-4">
+                  <BrutalistButton variant="danger" fullWidth onClick={resetToDefaults}>Полный Сброс Базы (Reset)</BrutalistButton>
+                </div>
+                <div className="pt-8 border-t-2 border-black/20">
+                     <h3 className="font-bold mb-4">Резервное копирование (JSON)</h3>
+                     <input type="file" ref={fileInputRef} className="hidden" accept=".json" onChange={handleImport} />
+                     <div className="flex gap-4">
+                         <BrutalistButton onClick={() => {
+                            try {
+                                const dataStr = JSON.stringify(data, null, 2);
+                                const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+                                const linkElement = document.createElement('a');
+                                linkElement.setAttribute('href', dataUri);
+                                linkElement.setAttribute('download', 'sulava_backup.json');
+                                linkElement.click();
+                            } catch (e) {
+                                alert("Ошибка создания резервной копии: " + e);
+                            }
+                         }}>Скачать Backup</BrutalistButton>
+                         <BrutalistButton variant="secondary" onClick={() => fileInputRef.current?.click()}>Загрузить Backup</BrutalistButton>
+                     </div>
+                </div>
+            </div>
+          )}
+
         </main>
       </div>
     </div>

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useData } from '../../context/DataContext';
 import { BrutalistButton } from '../../components/BrutalistButton';
@@ -9,18 +10,12 @@ export const ServicesView: React.FC = () => {
       title: language === 'ka' ? 'სერვისები და ფასები' : 'Услуги и Стоимость',
       book: language === 'ka' ? 'ჩაწერა' : 'Записаться',
       important: language === 'ka' ? 'მნიშვნელოვანი ინფორმაცია' : 'Важная информация',
-      notes: language === 'ka' ? [
-          'გადახდა ხდება სესიამდე 24 საათით ადრე.',
-          '24 საათზე ნაკლებ დროში გაუქმებული სესია ანაზღაურდება სრულად.',
-          'კონფიდენციალურობა გარანტირებულია.',
-          'კონსულტაციები მხოლოდ ონლაინ.'
-      ] : [
-          'Оплата производится за 24 часа до сессии.',
-          'Отмена менее чем за 24 часа оплачивается полностью.',
-          'Конфиденциальность гарантируется этическим кодексом.',
-          'Консультации только онлайн.'
-      ]
   };
+
+  // Split the text from CMS into a list based on newlines
+  const importantNotes = (language === 'ka' ? data.ui.important_info_text.ka : data.ui.important_info_text.ru)
+    .split('\n')
+    .filter(line => line.trim() !== '');
 
   return (
     <div className="p-4 md:p-12 lg:p-20">
@@ -45,7 +40,7 @@ export const ServicesView: React.FC = () => {
                   {service.duration}
                 </span>
               </div>
-              <p className="font-serif text-base md:text-xl opacity-80 max-w-2xl">
+              <p className="font-serif text-base md:text-xl opacity-80 max-w-2xl whitespace-pre-wrap">
                  {language === 'ka' ? service.description_ka : service.description_ru}
               </p>
             </div>
@@ -54,14 +49,15 @@ export const ServicesView: React.FC = () => {
               <span className="text-xl md:text-3xl font-mono font-bold">
                 {service.price}
               </span>
-              <button 
-                onClick={() => setBookingModalOpen(true)}
-                className="w-1/2 md:w-auto"
-              >
-                <BrutalistButton fullWidth className="group-hover:bg-white group-hover:text-black group-hover:border-white">
+              <div className="w-1/2 md:w-auto">
+                <BrutalistButton 
+                  fullWidth 
+                  onClick={() => setBookingModalOpen(true)}
+                  className="group-hover:bg-white group-hover:text-black group-hover:border-white"
+                >
                   {labels.book}
                 </BrutalistButton>
-              </button>
+              </div>
             </div>
           </div>
         ))}
@@ -70,7 +66,7 @@ export const ServicesView: React.FC = () => {
       <div className="mt-8 md:mt-16 p-4 md:p-8 bg-gray-100 border-2 border-black">
         <h3 className="font-bold uppercase text-lg md:text-xl mb-4">{labels.important}</h3>
         <ul className="list-disc list-inside space-y-2 font-mono text-xs md:text-sm">
-            {labels.notes.map((note, i) => (
+            {importantNotes.map((note, i) => (
                 <li key={i}>{note}</li>
             ))}
         </ul>

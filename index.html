@@ -6,6 +6,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SULAVA PSYCHO | ფსიქოლოგი</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+              mono: ['JetBrains Mono', 'monospace'],
+            },
+            colors: {
+              black: '#000000',
+              white: '#ffffff',
+            }
+          }
+        }
+      }
+    </script>
     <style>
       @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;700;900&display=swap');
       
@@ -14,12 +30,9 @@
         background-color: #ffffff;
         color: #000000;
         margin: 0;
+        overflow-x: hidden; /* Prevent horizontal scroll */
       }
       
-      .font-mono {
-        font-family: 'JetBrains Mono', monospace;
-      }
-
       /* Custom Scrollbar for Brutalist Feel */
       ::-webkit-scrollbar {
         width: 12px;
@@ -61,7 +74,9 @@
     "firebase/app": "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js",
     "firebase/firestore": "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js",
     "firebase/auth": "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js",
-    "firebase/": "https://esm.sh/firebase@^12.7.0/"
+    "firebase/": "https://esm.sh/firebase@^12.7.0/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.35.0",
+    "react-chartjs-2": "https://esm.sh/react-chartjs-2@^5.3.1"
   }
 }
 </script>
