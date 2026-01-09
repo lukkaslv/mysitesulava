@@ -1,32 +1,25 @@
+
 import React from 'react';
 import { useData } from '../../context/DataContext';
 import { useParams, Navigate } from 'react-router-dom';
 import { Page } from '../../types';
 
 interface PageViewProps {
-  pageData?: Page; // Allow passing page data directly
+  pageData?: Page;
 }
 
 export const PageView: React.FC<PageViewProps> = ({ pageData }) => {
   const { data, language } = useData();
   const { slug } = useParams<{slug: string}>();
 
-  // If pageData is provided (home scroll mode), use it.
-  // Otherwise, look up by slug from URL.
   let page = pageData;
-  
   if (!page) {
-      // If root path "/" and no pageData passed, default to 'home' logic handled by HomeScroll usually,
-      // but for direct / access we fallback.
       const activeSlug = slug || 'home';
       page = data.pages.find(p => p.slug === activeSlug);
   }
 
   if (!page || !page.isVisible) {
-    if (slug === undefined) {
-         // Should ideally not happen if HomeScroll is used, but safe fallback
-         return null; 
-    }
+    if (slug === undefined) return null; 
     return <Navigate to="/" replace />;
   }
 
@@ -34,18 +27,24 @@ export const PageView: React.FC<PageViewProps> = ({ pageData }) => {
   const content = language === 'ka' ? page.content_ka : page.content_ru;
 
   return (
-    <div className="p-4 md:p-12 lg:p-20">
-      <h1 className="text-3xl md:text-5xl lg:text-7xl font-black mb-8 md:mb-12 uppercase leading-none tracking-tighter break-words border-b-2 border-black pb-4 md:pb-8">
-        {title}
-      </h1>
+    <div className="px-5 py-10 md:px-12 md:py-20 lg:px-20 max-w-6xl mx-auto">
+      <header className="mb-10 md:mb-16">
+        <h1 className="fluid-header uppercase mb-6 md:mb-8 border-l-[10px] md:border-l-[16px] border-black pl-4 md:pl-8">
+          {title}
+        </h1>
+      </header>
       
-      <div className="prose prose-lg md:prose-xl prose-p:font-sans prose-p:text-black prose-headings:font-bold prose-headings:uppercase max-w-none">
+      <div className="space-y-6 md:space-y-10">
         {content.split('\n').map((paragraph, idx) => (
           paragraph.trim() ? (
-             <p key={idx} className="mb-4 md:mb-6 leading-relaxed font-medium text-base md:text-xl">
+             <p 
+                key={idx} 
+                className={`text-lg md:text-3xl lg:text-4xl leading-[1.4] md:leading-[1.3] font-medium 
+                ${language === 'ka' ? 'font-sans tracking-normal text-gray-900' : 'font-sans font-semibold'}`}
+              >
                {paragraph}
              </p>
-          ) : <br key={idx} />
+          ) : <div key={idx} className="h-4 md:h-10" />
         ))}
       </div>
     </div>

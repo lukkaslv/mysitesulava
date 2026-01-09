@@ -395,6 +395,7 @@ export const AdminDashboard: React.FC = () => {
                    <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1">
                         <label className="text-[10px] font-black uppercase">Специальность (RU)</label>
+                        {/* Fixed missing event parameter 'e' below */}
                         <input className="w-full border-2 border-black p-3" value={tempProfile.title_ru} onChange={e => setTempProfile({...tempProfile, title_ru: e.target.value})} />
                       </div>
                       <div className="space-y-1">

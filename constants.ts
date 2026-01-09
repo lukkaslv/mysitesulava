@@ -62,6 +62,7 @@ export const DEFAULT_DATA: AppData = {
   ui: {
       book_btn: { ka: 'დაჯავშნა', ru: 'ЗАПИСАТЬСЯ' },
       services_nav: { ka: 'სერვისები', ru: 'УСЛУГИ' },
+      services_title: { ka: 'სერვისები და ფასები', ru: 'УСЛУГИ И СТОИМОСТЬ' },
       contact_footer: { ka: 'კონტაქტი', ru: 'КОНТАКТЫ' },
       rights_footer: { ka: 'ყველა უფლება დაცულია.', ru: 'Все права защищены.' },
       important_info_title: { ka: 'მნიშვნელოვანი ინფორმაცია', ru: 'ВАЖНАЯ ИНФОРМАЦИЯ' },

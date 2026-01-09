@@ -3,7 +3,7 @@
 <html lang="ka">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>SULAVA PSYCHO | ფსიქოლოგი</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -11,55 +11,64 @@
         theme: {
           extend: {
             fontFamily: {
-              sans: ['Inter', 'sans-serif'],
+              sans: ['Inter', 'Noto Sans Georgian', 'system-ui', 'sans-serif'],
               mono: ['JetBrains Mono', 'monospace'],
             },
             colors: {
               black: '#000000',
               white: '#ffffff',
+              accent: '#f3f4f6'
             }
           }
         }
       }
     </script>
     <style>
-      @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;700;900&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;800;900&family=Noto+Sans+Georgian:wght@400;700;900&display=swap');
       
       body {
-        font-family: 'Inter', sans-serif;
+        font-family: 'Inter', 'Noto Sans Georgian', sans-serif;
         background-color: #ffffff;
         color: #000000;
         margin: 0;
-        overflow-x: hidden; /* Prevent horizontal scroll */
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
       }
       
-      /* Custom Scrollbar for Brutalist Feel */
-      ::-webkit-scrollbar {
-        width: 12px;
-      }
-      ::-webkit-scrollbar-track {
-        background: #ffffff;
-        border-left: 2px solid #000000;
-      }
-      ::-webkit-scrollbar-thumb {
-        background: #000000;
-        border: 2px solid #ffffff;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #333333;
+      /* Specific fixes for Georgian readability */
+      [lang="ka"] {
+        line-height: 1.5;
+        letter-spacing: 0.02em;
       }
 
-      /* Simple loading animation */
-      .loading-bar {
-        height: 4px;
-        background: black;
-        width: 0%;
-        animation: loading 2s infinite linear;
+      /* Fluid Typography for Headers */
+      .fluid-header {
+        font-size: clamp(1.75rem, 10vw, 4.5rem);
+        line-height: 1.1;
+        font-weight: 900;
+        letter-spacing: -0.02em;
       }
-      @keyframes loading {
-        0% { width: 0%; left: 0; }
-        50% { width: 100%; left: 0; }
-        100% { width: 0%; left: 100%; }
+
+      [lang="ka"] .fluid-header {
+        font-weight: 800; /* Georgian looks better slightly less bold */
+        letter-spacing: 0;
+        line-height: 1.2;
+      }
+
+      .brutal-card {
+        border: 3px solid black;
+        transition: all 0.2s ease;
+      }
+
+      /* Custom Scrollbar */
+      ::-webkit-scrollbar { width: 8px; }
+      ::-webkit-scrollbar-track { background: white; }
+      ::-webkit-scrollbar-thumb { background: black; border: 2px solid white; }
+
+      .section-divider {
+        height: 8px;
+        background: black;
+        width: 100%;
       }
     </style>
   <script type="importmap">
@@ -74,9 +83,8 @@
     "firebase/app": "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js",
     "firebase/firestore": "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js",
     "firebase/auth": "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js",
-    "firebase/": "https://esm.sh/firebase@^12.7.0/",
-    "@google/genai": "https://esm.sh/@google/genai@^1.35.0",
-    "react-chartjs-2": "https://esm.sh/react-chartjs-2@^5.3.1"
+    "firebase/": "https://esm.sh/firebase@10.8.0/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.35.0"
   }
 }
 </script>

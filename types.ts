@@ -54,6 +54,7 @@ export interface UIStrings {
   rights_footer: { ka: string; ru: string };
   
   // Services Page
+  services_title: { ka: string; ru: string };
   important_info_title: { ka: string; ru: string };
   important_info_text: { ka: string; ru: string };
 }
